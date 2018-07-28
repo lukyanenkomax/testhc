@@ -21,7 +21,7 @@ import warnings
 warnings.filterwarnings("ignore")
 print(strftime("%Y-%m-%d %H:%M:%S", gmtime(time()+3600*7)))
 #debug
-nrows=10000
+nrows=5000
 #nrows=None
 CATEGORICAL_COLUMNS = ['CODE_GENDER',
                        'EMERGENCYSTATE_MODE',
