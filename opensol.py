@@ -177,6 +177,8 @@ test = reduce_mem(pd.read_csv('../input/application_test.csv')
 data['INCOMPLETE_APP']=data.isnull().sum(axis=1)
 test['INCOMPLETE_APP']=test.isnull().sum(axis=1)
 #########
+feature_drop=pd.read_csv('./feature_importance_rank.csv')
+feature_drop=pd.DataFrame(feature_drop.loc[feature_drop['importance']<5,'feature'])
 print("Loading bureau...\n")
 print(strftime("%Y-%m-%d %H:%M:%S", gmtime(time()+3600*7)))
 bureau= pd.read_csv("../input/bureau.csv").sort_values(['SK_ID_CURR', 'SK_ID_BUREAU']).reset_index(drop = True).loc[:nrows, :]
@@ -998,12 +1000,16 @@ for f_ in categorical_feats:
 #print('Merge data')   
 
 
-#print('Drop feature')
+print('Drop feature')
 #feature_drop=pd.read_csv('../input/feature-importance-min/feature_importance_min.csv')
 #dr_feat=[c for c in feature_drop['feature'].tolist() if c in data.columns.tolist()]
 #data.drop(dr_feat,axis=1,inplace=True)
 #test.drop(dr_feat,axis=1,inplace=True)
-
+dr_feat=[c for c in feature_drop['feature'].tolist() if c in data.columns.tolist()]
+data.drop(dr_feat,axis=1,inplace=True)
+test.drop(dr_feat,axis=1,inplace=True)
+CATEGORICAL_COLUMNS=[c for c in CATEGORICAL_COLUMNS if c in data.columns.tolist()]
+print('Save data')
 data.to_csv("../output/data_eng.csv",index=False)
 test.to_csv("../output/test_eng.csv",index=False)
 y = data['TARGET']
@@ -1041,7 +1047,7 @@ for n_fold, (trn_idx, val_idx) in enumerate(folds.split(data,y)):
         max_depth=-1,
         metric='auc',
         min_child_samples=70,
-        min_gain_to_split=0.5,
+        min_split_gain=0.5,
         num_leaves=30,
         n_estimators=10000,
         objective='binary',
