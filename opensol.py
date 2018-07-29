@@ -177,8 +177,10 @@ test = reduce_mem(pd.read_csv('../input/application_test.csv')
 data['INCOMPLETE_APP']=data.isnull().sum(axis=1)
 test['INCOMPLETE_APP']=test.isnull().sum(axis=1)
 #########
-feature_drop=pd.read_csv('./feature_importance_rank.csv')
-feature_drop=pd.DataFrame(feature_drop.loc[feature_drop['importance']<5,'feature'])
+#feature_drop=pd.read_csv('./feature_importance_rank.csv')
+feature_drop=pd.read_csv('./f_importance.csv')
+feature_drop=feature_drop['feature','importance'].groupby('feature').mean().reset_index()
+feature_drop=pd.DataFrame(feature_drop.loc[feature_drop['importance']<0.1,'feature'])
 print("Loading bureau...\n")
 print(strftime("%Y-%m-%d %H:%M:%S", gmtime(time()+3600*7)))
 bureau= pd.read_csv("../input/bureau.csv").sort_values(['SK_ID_CURR', 'SK_ID_BUREAU']).reset_index(drop = True).loc[:nrows, :]
@@ -1012,9 +1014,9 @@ for f_ in categorical_feats:
 
 print('Drop feature')
 #feature_drop=pd.read_csv('../input/feature-importance-min/feature_importance_min.csv')
-#dr_feat=[c for c in feature_drop['feature'].tolist() if c in data.columns.tolist()]
-#data.drop(dr_feat,axis=1,inplace=True)
-#test.drop(dr_feat,axis=1,inplace=True)
+dr_feat=[c for c in feature_drop['feature'].tolist() if c in data.columns.tolist()]
+data.drop(dr_feat,axis=1,inplace=True)
+test.drop(dr_feat,axis=1,inplace=True)
 dr_feat=[c for c in feature_drop['feature'].tolist() if c in data.columns.tolist()]
 data.drop(dr_feat,axis=1,inplace=True)
 test.drop(dr_feat,axis=1,inplace=True)
