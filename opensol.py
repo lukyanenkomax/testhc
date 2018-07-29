@@ -696,6 +696,9 @@ for agg in ['mean', 'min', 'max', 'sum', 'var']:
                    'RATE_DOWN_PAYMENT'
                    ]:
         PREVIOUS_APPLICATION_AGGREGATION_RECIPIES.append((select, agg))
+previous_application,new_prev_col=one_hot_encoder(previous_application)
+for select in new_prev_col:
+    PREVIOUS_APPLICATION_AGGREGATION_RECIPIES.append((select, 'sum'))
 PREVIOUS_APPLICATION_AGGREGATION_RECIPIES = [(['SK_ID_CURR'], PREVIOUS_APPLICATION_AGGREGATION_RECIPIES)]
 features = pd.DataFrame({'SK_ID_CURR': previous_application['SK_ID_CURR'].unique()})
 groupby_aggregate_names = []
@@ -712,8 +715,9 @@ for groupby_cols, specs in PREVIOUS_APPLICATION_AGGREGATION_RECIPIES:
                               on=groupby_cols,
                               how='left')
         groupby_aggregate_names.append(groupby_aggregate_name)
+features.info(verbose=True)
+exit(0)
 numbers_of_applications = [1, 3, 5]
-
 prev_applications_sorted = previous_application.sort_values(['SK_ID_CURR', 'DAYS_DECISION'])
 group_object = prev_applications_sorted.groupby(by=['SK_ID_CURR'])['SK_ID_PREV'].nunique().reset_index()
 group_object.rename(index=str,
@@ -893,6 +897,9 @@ def process_app_train(X):
     for function_name in ['min', 'max', 'sum', 'mean', 'nanmedian']:
         X['external_sources_{}'.format(function_name)] = eval('np.{}'.format(function_name))(
                 X[['EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3']], axis=1)
+    X['credit_pos_cash_inst_ratio'] = X['credit_to_annuity_ratio'] /(1+ X['pos_cash_remaining_installments'])
+    X['bureau_debt_income_ratio']=X['bureau_total_customer_debt']/X['AMT_INCOME_TOTAL']
+    X['bureau_app_credit_ratio']=X['bureau_total_customer_credit']/X['AMT_CREDIT']
     return X
 print("Preprocessing train and test data...\n")
 print(strftime("%Y-%m-%d %H:%M:%S", gmtime(time()+3600*7)))
@@ -931,6 +938,7 @@ AGGREGATION_RECIPIES = [
                                                   ('EXT_SOURCE_3', 'mean'),
                                                   ('NONLIVINGAREA_AVG', 'mean'),
                                                   ('OWN_CAR_AGE', 'mean'),
+                                                  ('annuity_income_percentage', 'mean'),
                                                   ('YEARS_BUILD_AVG', 'mean')]),
     (['NAME_EDUCATION_TYPE', 'OCCUPATION_TYPE', 'REG_CITY_NOT_WORK_CITY'], [('ELEVATORS_AVG', 'mean'),
                                                                             ('EXT_SOURCE_1', 'mean')]),
