@@ -21,8 +21,8 @@ import warnings
 warnings.filterwarnings("ignore")
 print(strftime("%Y-%m-%d %H:%M:%S", gmtime(time()+3600*7)))
 #debug
-nrows=5000
-#nrows=None
+#nrows=5000
+nrows=None
 CATEGORICAL_COLUMNS = ['CODE_GENDER',
                        'EMERGENCYSTATE_MODE',
                        'FLAG_CONT_MOBILE',
@@ -406,7 +406,7 @@ def last_k_installment_features(gr, periods):
     return features
 
 func = partial(last_k_installment_features, periods=[1, 6, 12, 10e16])
-g = parallel_apply(groupby, func, index_name='SK_ID_CURR', num_workers=10, chunk_size=10000).reset_index()
+g = parallel_apply(groupby, func, index_name='SK_ID_CURR', num_workers=12, chunk_size=10000).reset_index()
 features = features.merge(g, on='SK_ID_CURR', how='left')
 def last_loan_features(gr):
     gr_ = gr.copy()
@@ -429,7 +429,7 @@ def last_loan_features(gr):
                                          'last_loan_')
     return features
 
-g = parallel_apply(groupby, last_loan_features, index_name='SK_ID_CURR', num_workers=10, chunk_size=10000).reset_index()
+g = parallel_apply(groupby, last_loan_features, index_name='SK_ID_CURR', num_workers=12, chunk_size=10000).reset_index()
 features = features.merge(g, on='SK_ID_CURR', how='left')
 def trend_in_last_k_installment_features(gr, periods):
     gr_ = gr.copy()
@@ -460,7 +460,7 @@ def add_trend_feature(features, gr, feature_name, prefix):
     return features
 
 func = partial(trend_in_last_k_installment_features, periods=[1,6,12,30,60])
-g = parallel_apply(groupby, func, index_name='SK_ID_CURR', num_workers=10, chunk_size=10000).reset_index()
+g = parallel_apply(groupby, func, index_name='SK_ID_CURR', num_workers=12, chunk_size=10000).reset_index()
 features = features.merge(g, on='SK_ID_CURR', how='left')
 features=reduce_mem(features)
 data = data.merge(right=features, how='left', on='SK_ID_CURR')
@@ -573,7 +573,7 @@ print(strftime("%Y-%m-%d %H:%M:%S", gmtime(time()+3600*7)))
 func = partial(last_k_instalment_features, periods=[1,5,10,20,50,100])
 
 g = parallel_apply(groupby, func, index_name='SK_ID_CURR',
-                   num_workers=16, chunk_size=10000).reset_index()
+                   num_workers=12, chunk_size=10000).reset_index()
 features = features.merge(g, on='SK_ID_CURR', how='left')
 from sklearn.linear_model import LinearRegression
 
@@ -611,7 +611,7 @@ print(strftime("%Y-%m-%d %H:%M:%S", gmtime(time()+3600*7)))
 func = partial(trend_in_last_k_instalment_features, periods=[10,50,100,500])
 
 g = parallel_apply(groupby, func, index_name='SK_ID_CURR',
-                   num_workers=8, chunk_size=10000).reset_index()
+                   num_workers=12, chunk_size=10000).reset_index()
 features = features.merge(g, on='SK_ID_CURR', how='left')
 
 def last_k_instalment_features_with_fractions(gr, periods, fraction_periods):
@@ -665,7 +665,7 @@ func = partial(last_k_instalment_features_with_fractions,
                fraction_periods=[(5,20),(5,50),(10,100)])
 
 g = parallel_apply(groupby, func, index_name='SK_ID_CURR',
-                   num_workers=8, chunk_size=1000).reset_index()
+                   num_workers=12, chunk_size=1000).reset_index()
 features = features.merge(g, on='SK_ID_CURR', how='left')
      
 from sys import exit as sys_exit
@@ -717,7 +717,7 @@ for groupby_cols, specs in PREVIOUS_APPLICATION_AGGREGATION_RECIPIES:
                               on=groupby_cols,
                               how='left')
         groupby_aggregate_names.append(groupby_aggregate_name)
-features.info(verbose=True)
+#features.info(verbose=True)
 numbers_of_applications = [1, 3, 5]
 prev_applications_sorted = previous_application.sort_values(['SK_ID_CURR', 'DAYS_DECISION'])
 group_object = prev_applications_sorted.groupby(by=['SK_ID_CURR'])['SK_ID_PREV'].nunique().reset_index()
@@ -758,6 +758,7 @@ for number in numbers_of_applications:
 del  previous_application,prev_applications_sorted
 gc.collect()
 features=reduce_mem(features)
+features.info(verbose=True)
 data = data.merge(right=features, how='left', on='SK_ID_CURR')
 test = test.merge(right=features, how='left', on='SK_ID_CURR')
 print('Shapes : ', data.shape, test.shape)
@@ -810,7 +811,7 @@ def last_k_installment_features(gr, periods):
                                              period_name)
     return features
 func = partial(last_k_installment_features, periods=[6, 12, 24, 60, 10e16])
-g = parallel_apply(groupby, func, index_name='SK_ID_CURR', num_workers=10, chunk_size=10000).reset_index()
+g = parallel_apply(groupby, func, index_name='SK_ID_CURR', num_workers=12, chunk_size=10000).reset_index()
 features = features.merge(g, on='SK_ID_CURR', how='left')
 
 def trend_in_last_k_installment_features(gr, periods):
@@ -838,7 +839,7 @@ def add_trend_feature(features, gr, feature_name, prefix):
     features['{}{}'.format(prefix, feature_name)] = trend
     return features
 func = partial(trend_in_last_k_installment_features, periods=[6,12,24,60])
-g = parallel_apply(groupby, func, index_name='SK_ID_CURR', num_workers=10, chunk_size=10000).reset_index()
+g = parallel_apply(groupby, func, index_name='SK_ID_CURR', num_workers=12, chunk_size=10000).reset_index()
 features = features.merge(g, on='SK_ID_CURR', how='left')
 
 def last_k_instalment_fractions(old_features, fraction_periods):
