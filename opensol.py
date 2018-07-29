@@ -696,7 +696,9 @@ for agg in ['mean', 'min', 'max', 'sum', 'var']:
                    'RATE_DOWN_PAYMENT'
                    ]:
         PREVIOUS_APPLICATION_AGGREGATION_RECIPIES.append((select, agg))
+prev_status=previous_application['NAME_CONTRACT_STATUS']
 previous_application,new_prev_col=one_hot_encoder(previous_application)
+previous_application['NAME_CONTRACT_STATUS']=prev_status
 for select in new_prev_col:
     PREVIOUS_APPLICATION_AGGREGATION_RECIPIES.append((select, 'sum'))
 PREVIOUS_APPLICATION_AGGREGATION_RECIPIES = [(['SK_ID_CURR'], PREVIOUS_APPLICATION_AGGREGATION_RECIPIES)]
@@ -716,7 +718,6 @@ for groupby_cols, specs in PREVIOUS_APPLICATION_AGGREGATION_RECIPIES:
                               how='left')
         groupby_aggregate_names.append(groupby_aggregate_name)
 features.info(verbose=True)
-exit(0)
 numbers_of_applications = [1, 3, 5]
 prev_applications_sorted = previous_application.sort_values(['SK_ID_CURR', 'DAYS_DECISION'])
 group_object = prev_applications_sorted.groupby(by=['SK_ID_CURR'])['SK_ID_PREV'].nunique().reset_index()
