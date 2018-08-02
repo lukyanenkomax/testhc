@@ -9,8 +9,10 @@ import sys
 import warnings
 import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
+from time import gmtime, strftime,time
 nrows=None
 #nrows=1000
+print("Loading data")
 data = pd.read_csv('../output/data_eng.csv',nrows=nrows)
 test = pd.read_csv('../output/test_eng.csv',nrows=nrows)
 #data.info(verbose=True)
@@ -61,21 +63,33 @@ CATEGORICAL_COLUMNS = ['CODE_GENDER',
                        'WALLSMATERIAL_MODE',
                        'WEEKDAY_APPR_PROCESS_START']
 CATEGORICAL_COLUMNS=[c for c in CATEGORICAL_COLUMNS if c in data.columns.tolist()]
-print(CATEGORICAL_COLUMNS)
+#print(CATEGORICAL_COLUMNS)
 cl=[feats.index(c) for c in CATEGORICAL_COLUMNS]
 CATEGORICAL_COLUMNS=cl
-print(CATEGORICAL_COLUMNS)
+#print(CATEGORICAL_COLUMNS)
 #`import catboost
 #catboost.__version__
 from catboost import CatBoostClassifier
 #import catboost as cb
+print(feats[1133])
+print(test[feats[1133]].isnull().any())
+print(data[feats[1133]].isnull().any())
+for c in feats:
+    if (~data[c].isnull().any())&test[c].isnull().any():
+        print(c)
+        test[c].fillna(0)
+sys.exit(0)
+roc=pd.DataFrame(columns=['auc','fold'])
+print("Training model")
+print(strftime("%Y-%m-%d %H:%M:%S", gmtime(time()+3600*7)))
 for n_fold, (trn_idx, val_idx) in enumerate(folds.split(data,y)):
     trn_x, trn_y = data[feats].iloc[trn_idx], y.iloc[trn_idx]
     val_x, val_y = data[feats].iloc[val_idx], y.iloc[val_idx]
     model = CatBoostClassifier(random_seed=42,iterations=5000,metric_period=100,
-                               bagging_temperature=0.5,
-                               depth=4, l2_leaf_reg=5, learning_rate=0.07,eval_metric='AUC',od_type="Iter",od_wait=300)
+                               bagging_temperature=0.5,rsm=0.1,one_hot_max_size=15,
+                               depth=4, l2_leaf_reg=5, learning_rate=0.07,eval_metric='AUC',od_type="Iter",od_wait=500)
     print('Fold '+str(n_fold+1))
+    print(strftime("%Y-%m-%d %H:%M:%S", gmtime(time()+3600*7)))
     model.fit(trn_x, trn_y,eval_set=(val_x, val_y),
 	      use_best_model=True,  verbose=200,cat_features=CATEGORICAL_COLUMNS)
     val_pred=model.predict_proba(val_x)
@@ -83,6 +97,12 @@ for n_fold, (trn_idx, val_idx) in enumerate(folds.split(data,y)):
     test_pred=model.predict_proba(test[feats])
     sub_preds += test_pred[:, 1] / folds.n_splits
     print("roc_auc_score = {}".format(roc_auc_score(val_y, val_pred[:, 1])))
+    roc=roc.append({'auc':roc_auc_score(val_y, oof_preds[val_idx]),'fold':(n_fold+1)},ignore_index=True)
     del model, trn_x, trn_y, val_x, val_y,val_pred,test_pred
     gc.collect()
 print('Full AUC score %.6f' % roc_auc_score(y, oof_preds))
+test['TARGET'] = sub_preds
+roc=roc.append({'auc':roc_auc_score(y, oof_preds),'fold':0},ignore_index=True)
+roc.to_csv("../output/"+strftime("%Y-%m-%d_%H-%M-%S", gmtime(time()+3600*7))+"_roc.csv", index=False)
+from time import gmtime, strftime
+test[['SK_ID_CURR', 'TARGET']].to_csv("../output/"+strftime("%Y-%m-%d_%H-%M-%S", gmtime(time()+3600*7))+"_cat_submission.csv", index=False)
