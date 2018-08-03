@@ -177,10 +177,10 @@ test = reduce_mem(pd.read_csv('../input/application_test.csv')
 data['INCOMPLETE_APP']=data.isnull().sum(axis=1)
 test['INCOMPLETE_APP']=test.isnull().sum(axis=1)
 #########
-feature_drop=pd.read_csv('./feature_importance_rank.csv')
-#eature_drop=pd.read_csv('./f_importance.csv')
-#eature_drop=feature_drop['feature','importance'].groupby('feature').mean().reset_index()
-feature_drop=pd.DataFrame(feature_drop.loc[feature_drop['importance']<5,'feature'])
+#feature_drop=pd.read_csv('./feature_importance_rank.csv')
+feature_drop=pd.read_csv('./f_importance.csv')
+feature_drop=feature_drop[['feature','importance']].groupby('feature').mean().reset_index()
+feature_drop=pd.DataFrame(feature_drop.loc[feature_drop['importance']==0,'feature'])
 print("Loading bureau...\n")
 print(strftime("%Y-%m-%d %H:%M:%S", gmtime(time()+3600*7)))
 bureau= pd.read_csv("../input/bureau.csv").sort_values(['SK_ID_CURR', 'SK_ID_BUREAU']).reset_index(drop = True).loc[:nrows, :]
@@ -760,7 +760,7 @@ for number in numbers_of_applications:
 del  previous_application,prev_applications_sorted
 gc.collect()
 features=reduce_mem(features)
-features.info(verbose=True)
+#features.info(verbose=True)
 data = data.merge(right=features, how='left', on='SK_ID_CURR')
 test = test.merge(right=features, how='left', on='SK_ID_CURR')
 print('Shapes : ', data.shape, test.shape)
@@ -904,6 +904,9 @@ def process_app_train(X):
     X['credit_pos_cash_inst_ratio'] = X['credit_to_annuity_ratio'] /(1+ X['pos_cash_remaining_installments'])
     X['bureau_debt_income_ratio']=X['bureau_total_customer_debt']/X['AMT_INCOME_TOTAL']
     X['bureau_app_credit_ratio']=X['bureau_total_customer_credit']/X['AMT_CREDIT']
+    X['bureau_day_debt_ratio']=X['bureau_total_customer_debt']/(1+X['SK_ID_CURR_mean_DAYS_CREDIT_ENDDATE'])
+
+
     return X
 print("Preprocessing train and test data...\n")
 print(strftime("%Y-%m-%d %H:%M:%S", gmtime(time()+3600*7)))
@@ -997,6 +1000,9 @@ for groupby_cols, specs in AGGREGATION_RECIPIES:
 start_mem = data.memory_usage().sum() / 1024**2
 print('Memory usage of data after agg {:.2f} MB'.format(start_mem))
 print('Shapes : ', data.shape, test.shape)
+data.drop(groupby_aggregate_names,axis=1,inplace=True)
+test.drop(groupby_aggregate_names,axis=1,inplace=True)
+
 #sys_exit(0)
 
 
@@ -1066,7 +1072,8 @@ for n_fold, (trn_idx, val_idx) in enumerate(folds.split(data,y)):
         scale_pos_weight=1.0,
         subsample=1.0,
         subsample_freq=1,
-        random_state=n_fold
+        random_state=n_fold,
+        importance_type='gain'
     )
     
     clf.fit(trn_x, trn_y, 
