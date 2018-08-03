@@ -100,22 +100,34 @@ CATEGORICAL_COLUMNS = ['CODE_GENDER',
                        'REG_REGION_NOT_WORK_REGION',
                        'WALLSMATERIAL_MODE',
                        'WEEKDAY_APPR_PROCESS_START']
-folds = StratifiedKFold(n_splits=10, shuffle=True, random_state=0) # 0 !!!!!
-oof_preds = np.zeros(data.shape[0])
-sub_preds = np.zeros(test.shape[0])
 #import catboost
-y = data['TARGET']
-del data['TARGET']
-feats = [f for f in data.columns if f not in ['SK_ID_CURR']]
+feats = [f for f in data.columns if f not in ['SK_ID_CURR','TARGET']]
 #print(CATEGORICAL_COLUMNS)
 #`import catboost
 #catboost.__version__
 from catboost import CatBoostClassifier
 #import catboost as cb
 dr_feat=[c for c in groupby_aggregate_names if c in data.columns.tolist()]
-#data.drop(dr_feat,axis=1,inplace=True)
-#test.drop(dr_feat,axis=1,inplace=True)
+data.drop(dr_feat,axis=1,inplace=True)
+test.drop(dr_feat,axis=1,inplace=True)
+#feats = [f for f in data.columns if f not in ['SK_ID_CURR']]
+#data.drop(feats[1134],axis=1,inplace=True)
+#test.drop(feats[1134],axis=1,inplace=True)
+#data=data[~data[feats[1134]].isnull()]
+#data=data[~data[feats[1146]].isnull()]
+y = data['TARGET']
+del data['TARGET']
+print('Shapes : ', data.shape, test.shape)
+print('Drop sigle NaN')
+for c in data.columns.tolist():
+    if data[c].isnull().sum()==1:
+        data=data[~data[c].isnull()]
+print('Shapes : ', data.shape, test.shape)
+folds = StratifiedKFold(n_splits=10, shuffle=True, random_state=0) # 0 !!!!!
+oof_preds = np.zeros(data.shape[0])
+sub_preds = np.zeros(test.shape[0])
 
+#print(data[feats[1134]].isnull().sum())
 feats = [f for f in data.columns if f not in ['SK_ID_CURR']]
 
 #data.drop(feats[1134],axis=1,inplace=True)
@@ -124,13 +136,6 @@ CATEGORICAL_COLUMNS=[c for c in CATEGORICAL_COLUMNS if c in data.columns.tolist(
 cl=[feats.index(c) for c in CATEGORICAL_COLUMNS]
 CATEGORICAL_COLUMNS=cl
 
-for c in feats:
-    if (~data[c].isnull().any())&test[c].isnull().any():
-        print(c)
-        test[c].fillna(0)
-test[feats[1133]].fillna(0)
-test[feats[1134]].fillna(0)
-test[feats[1135]].fillna(0)
 roc=pd.DataFrame(columns=['auc','fold'])
 print("Training model")
 print(strftime("%Y-%m-%d %H:%M:%S", gmtime(time()+3600*7)))
@@ -139,11 +144,12 @@ for n_fold, (trn_idx, val_idx) in enumerate(folds.split(data,y)):
     val_x, val_y = data[feats].iloc[val_idx], y.iloc[val_idx]
     model = CatBoostClassifier(random_seed=42,iterations=5000,metric_period=100,
                                bagging_temperature=0.5,rsm=0.1,one_hot_max_size=15,
-                               depth=4, l2_leaf_reg=5, learning_rate=0.07,eval_metric='AUC',od_type="Iter",od_wait=500)
+                               depth=4, l2_leaf_reg=5,eval_metric='AUC',od_type="Iter",od_wait=600)
     print('Fold '+str(n_fold+1))
     print(strftime("%Y-%m-%d %H:%M:%S", gmtime(time()+3600*7)))
+#    if n_fold==3:
     model.fit(trn_x, trn_y,eval_set=(val_x, val_y),
-	      use_best_model=True,  verbose=200,cat_features=CATEGORICAL_COLUMNS)
+      use_best_model=True,  verbose=200,cat_features=CATEGORICAL_COLUMNS)
     val_pred=model.predict_proba(val_x)
     oof_preds[val_idx] = model.predict_proba(val_x)[:, 1]
     test_pred=model.predict_proba(test[feats])
