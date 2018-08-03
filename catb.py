@@ -17,13 +17,51 @@ data = pd.read_csv('../output/data_eng.csv',nrows=nrows)
 test = pd.read_csv('../output/test_eng.csv',nrows=nrows)
 #data.info(verbose=True)
 #sys.exit(0)
-folds = StratifiedKFold(n_splits=10, shuffle=True, random_state=0) # 0 !!!!!
-oof_preds = np.zeros(data.shape[0])
-sub_preds = np.zeros(test.shape[0])
-#import catboost
-y = data['TARGET']
-del data['TARGET']
-feats = [f for f in data.columns if f not in ['SK_ID_CURR']]
+AGGREGATION_RECIPIES = [
+    (['CODE_GENDER', 'NAME_EDUCATION_TYPE'], [('AMT_ANNUITY', 'max'),
+                                              ('AMT_CREDIT', 'max'),
+                                              ('EXT_SOURCE_1', 'mean'),
+                                              ('EXT_SOURCE_2', 'mean'),
+                                              ('OWN_CAR_AGE', 'max'),
+                                              ('OWN_CAR_AGE', 'sum')]),
+    (['CODE_GENDER', 'ORGANIZATION_TYPE'], [('AMT_ANNUITY', 'mean'),
+                                            ('AMT_INCOME_TOTAL', 'mean'),
+                                            ('DAYS_REGISTRATION', 'mean'),
+                                            ('EXT_SOURCE_1', 'mean')]),
+    (['CODE_GENDER', 'REG_CITY_NOT_WORK_CITY'], [('AMT_ANNUITY', 'mean'),
+                                                 ('CNT_CHILDREN', 'mean'),
+                                                 ('DAYS_ID_PUBLISH', 'mean')]),
+    (['CODE_GENDER', 'NAME_EDUCATION_TYPE', 'OCCUPATION_TYPE', 'REG_CITY_NOT_WORK_CITY'], [('EXT_SOURCE_1', 'mean'),
+                                                                                           ('EXT_SOURCE_2', 'mean')]),
+    (['NAME_EDUCATION_TYPE', 'OCCUPATION_TYPE'], [('AMT_CREDIT', 'mean'),
+                                                  ('AMT_REQ_CREDIT_BUREAU_YEAR', 'mean'),
+                                                  ('APARTMENTS_AVG', 'mean'),
+                                                  ('BASEMENTAREA_AVG', 'mean'),
+                                                  ('EXT_SOURCE_1', 'mean'),
+                                                  ('EXT_SOURCE_2', 'mean'),
+                                                  ('EXT_SOURCE_3', 'mean'),
+                                                  ('NONLIVINGAREA_AVG', 'mean'),
+                                                  ('OWN_CAR_AGE', 'mean'),
+                                                  ('annuity_income_percentage', 'mean'),
+                                                  ('YEARS_BUILD_AVG', 'mean')]),
+    (['NAME_EDUCATION_TYPE', 'OCCUPATION_TYPE', 'REG_CITY_NOT_WORK_CITY'], [('ELEVATORS_AVG', 'mean'),
+                                                                            ('EXT_SOURCE_1', 'mean')]),
+    (['OCCUPATION_TYPE'], [('AMT_ANNUITY', 'mean'),
+                           ('CNT_CHILDREN', 'mean'),
+                           ('CNT_FAM_MEMBERS', 'mean'),
+                           ('DAYS_BIRTH', 'mean'),
+                           ('DAYS_EMPLOYED', 'mean'),
+                           ('DAYS_ID_PUBLISH', 'mean'),
+                           ('DAYS_REGISTRATION', 'mean'),
+                           ('EXT_SOURCE_1', 'mean'),
+                           ('EXT_SOURCE_2', 'mean'),
+                           ('EXT_SOURCE_3', 'mean')]),]
+groupby_aggregate_names = []
+print('Shapes : ', data.shape, test.shape)
+for groupby_cols, specs in AGGREGATION_RECIPIES:
+    for select, agg in specs:
+        groupby_aggregate_name = '{}_{}_{}'.format('_'.join(groupby_cols), agg, select)
+        groupby_aggregate_names.append(groupby_aggregate_name)
 CATEGORICAL_COLUMNS = ['CODE_GENDER',
                        'EMERGENCYSTATE_MODE',
                        'FLAG_CONT_MOBILE',
@@ -62,23 +100,37 @@ CATEGORICAL_COLUMNS = ['CODE_GENDER',
                        'REG_REGION_NOT_WORK_REGION',
                        'WALLSMATERIAL_MODE',
                        'WEEKDAY_APPR_PROCESS_START']
-CATEGORICAL_COLUMNS=[c for c in CATEGORICAL_COLUMNS if c in data.columns.tolist()]
-#print(CATEGORICAL_COLUMNS)
-cl=[feats.index(c) for c in CATEGORICAL_COLUMNS]
-CATEGORICAL_COLUMNS=cl
+folds = StratifiedKFold(n_splits=10, shuffle=True, random_state=0) # 0 !!!!!
+oof_preds = np.zeros(data.shape[0])
+sub_preds = np.zeros(test.shape[0])
+#import catboost
+y = data['TARGET']
+del data['TARGET']
+feats = [f for f in data.columns if f not in ['SK_ID_CURR']]
 #print(CATEGORICAL_COLUMNS)
 #`import catboost
 #catboost.__version__
 from catboost import CatBoostClassifier
 #import catboost as cb
-print(feats[1133])
-print(test[feats[1133]].isnull().any())
-print(data[feats[1133]].isnull().any())
+dr_feat=[c for c in groupby_aggregate_names if c in data.columns.tolist()]
+#data.drop(dr_feat,axis=1,inplace=True)
+#test.drop(dr_feat,axis=1,inplace=True)
+
+feats = [f for f in data.columns if f not in ['SK_ID_CURR']]
+
+#data.drop(feats[1134],axis=1,inplace=True)
+#test.drop(feats[1134],axis=1,inplace=True)
+CATEGORICAL_COLUMNS=[c for c in CATEGORICAL_COLUMNS if c in data.columns.tolist()]
+cl=[feats.index(c) for c in CATEGORICAL_COLUMNS]
+CATEGORICAL_COLUMNS=cl
+
 for c in feats:
     if (~data[c].isnull().any())&test[c].isnull().any():
         print(c)
         test[c].fillna(0)
-sys.exit(0)
+test[feats[1133]].fillna(0)
+test[feats[1134]].fillna(0)
+test[feats[1135]].fillna(0)
 roc=pd.DataFrame(columns=['auc','fold'])
 print("Training model")
 print(strftime("%Y-%m-%d %H:%M:%S", gmtime(time()+3600*7)))
