@@ -20,9 +20,10 @@ gc.enable()
 import warnings
 warnings.filterwarnings("ignore")
 print(strftime("%Y-%m-%d %H:%M:%S", gmtime(time()+3600*7)))
-#debug
-#nrows=5000
 nrows=None
+if len(sys.argv)>1:
+    nrows=5000
+    print('Debug mode')
 CATEGORICAL_COLUMNS = ['CODE_GENDER',
                        'EMERGENCYSTATE_MODE',
                        'FLAG_CONT_MOBILE',
@@ -680,6 +681,13 @@ gc.collect()
 print('Shapes : ', data.shape, test.shape)
 print('Loading previous application')
 previous_application =pd.read_csv("../input/previous_application.csv").sort_values(['SK_ID_CURR', 'SK_ID_PREV']).reset_index(drop = True).loc[:nrows, :]
+prev_active=previous_application[(previous_application['DAYS_TERMINATION']==365243)&(previous_application['DAYS_LAST_DUE_1ST_VERSION']>30)]
+prev_active['PREV_ACT_ANNUITY']=prev_active['AMT_ANNUITY']
+prev_active['PREV_DEBT']=prev_active['AMT_ANNUITY']*prev_active['DAYS_LAST_DUE_1ST_VERSION']/30
+prev_active['PREV_MONTH_LEFT']=prev_active['DAYS_LAST_DUE_1ST_VERSION']/30
+previous_application=previous_application.merge(prev_active[['SK_ID_PREV','PREV_ACT_ANNUITY','PREV_DEBT','PREV_MONTH_LEFT']],
+                                                on=['SK_ID_PREV'], how='left')
+del prev_active
 previous_application['DAYS_FIRST_DRAWING'].replace(365243, np.nan, inplace=True)
 previous_application['DAYS_FIRST_DUE'].replace(365243, np.nan, inplace=True)
 previous_application['DAYS_LAST_DUE_1ST_VERSION'].replace(365243, np.nan, inplace=True)
@@ -695,7 +703,10 @@ for agg in ['mean', 'min', 'max', 'sum', 'var']:
                    'CNT_PAYMENT',
                    'DAYS_DECISION',
                    'HOUR_APPR_PROCESS_START',
-                   'RATE_DOWN_PAYMENT'
+                   'RATE_DOWN_PAYMENT',
+                   'PREV_ACT_ANNUITY',
+                   'PREV_DEBT',
+                   'PREV_MONTH_LEFT'
                    ]:
         PREVIOUS_APPLICATION_AGGREGATION_RECIPIES.append((select, agg))
 prev_status=previous_application['NAME_CONTRACT_STATUS']
@@ -720,6 +731,8 @@ for groupby_cols, specs in PREVIOUS_APPLICATION_AGGREGATION_RECIPIES:
                               how='left')
         groupby_aggregate_names.append(groupby_aggregate_name)
 #features.info(verbose=True)
+del previous_application['PREV_ACT_ANNUITY'],previous_application['PREV_DEBT'],previous_application['PREV_MONTH_LEFT']
+gc.collect()
 numbers_of_applications = [1, 3, 5]
 prev_applications_sorted = previous_application.sort_values(['SK_ID_CURR', 'DAYS_DECISION'])
 group_object = prev_applications_sorted.groupby(by=['SK_ID_CURR'])['SK_ID_PREV'].nunique().reset_index()
@@ -905,6 +918,8 @@ def process_app_train(X):
     X['bureau_debt_income_ratio']=X['bureau_total_customer_debt']/X['AMT_INCOME_TOTAL']
     X['bureau_app_credit_ratio']=X['bureau_total_customer_credit']/X['AMT_CREDIT']
     X['bureau_day_debt_ratio']=X['bureau_total_customer_debt']/(1+X['SK_ID_CURR_mean_DAYS_CREDIT_ENDDATE'])
+    X['total_debt']=X['SK_ID_CURR_sum_PREV_DEBT']+X['bureau_total_customer_debt']+X['AMT_CREDIT']
+    X['total_debt_to_income']=X['total_debt']/X['AMT_INCOME_TOTAL']
 
 
     return X
@@ -1073,7 +1088,6 @@ for n_fold, (trn_idx, val_idx) in enumerate(folds.split(data,y)):
         subsample=1.0,
         subsample_freq=1,
         random_state=n_fold,
-        importance_type='gain'
     )
     
     clf.fit(trn_x, trn_y, 
@@ -1086,7 +1100,7 @@ for n_fold, (trn_idx, val_idx) in enumerate(folds.split(data,y)):
     
     fold_importance_df = pd.DataFrame()
     fold_importance_df["feature"] = feats
-    fold_importance_df["importance"] = clf.feature_importances_
+    fold_importance_df["importance"] = clf.booster_.feature_importance(importance_type='gain')
     fold_importance_df["fold"] = n_fold + 1
     feature_importance_df = pd.concat([feature_importance_df, fold_importance_df], axis=0)
     
