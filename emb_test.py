@@ -12,7 +12,7 @@ from sklearn.preprocessing import LabelEncoder
 import gc
 import sys
 import warnings
-nrows=5000
+nrows=100
 #nrows=None
 warnings.filterwarnings('ignore')
 gc.enable()
@@ -48,7 +48,7 @@ CATEGORICAL_COLUMNS = ['CODE_GENDER',
                        'NAME_FAMILY_STATUS',
                        'NAME_HOUSING_TYPE',
                        'OCCUPATION_TYPE',
-                       'ORGANIZATION_TYPE',
+#                       'ORGANIZATION_TYPE',
                        'REG_CITY_NOT_LIVE_CITY',
                        'REG_CITY_NOT_WORK_CITY',
                        'REG_REGION_NOT_LIVE_REGION',
@@ -124,16 +124,24 @@ test.drop(dr_feat,axis=1,inplace=True)
 CATEGORICAL_COLUMNS=[c for c in CATEGORICAL_COLUMNS if c in data.columns.tolist()]
 print('Shapes : ', data.shape, test.shape)
 cat_vars = [(col, data[col].unique().shape[0]) for col in CATEGORICAL_COLUMNS]
-
+print(cat_vars)
 #categorical_feats=[c for c in categorical_feats if c in data.columns.tolist()]
 
 y = data['TARGET']
 del data['TARGET']
 from embedder import preprocessing as pr
 from embedder.classification import Embedder
-embedding_dict =pr.pick_emb_dim(cat_vars, max_dim=50)
+for c in CATEGORICAL_COLUMNS:
+    m=data[c].max()+1
+    data.loc[data[c]==-1,c]=m
+#cat_sz = pr.categorize(data)
+#emb_sz = pr.size_embeddings(cat_vars)
+#data_encoded, encoders = pr.encode_categorical(data)
+embedding_dict =pr.pick_emb_dim(cat_vars, max_dim=60)
 data_encoded, encoders = pr.encode_categorical(data)
-embedder = Embedder(embedding_dict, model_json=None)
+data_encoded[CATEGORICAL_COLUMNS].to_csv("dtct.csv")
+print(embedding_dict)
+embedder = Embedder(embedding_dict)
 embedder.fit(data_encoded, y)
 emb_data=embedder.transoftm(data_encoded)
 emb_data.info(verbose=True)
