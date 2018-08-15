@@ -128,7 +128,26 @@ y = data['TARGET']
 del data['TARGET']
 
 gc.collect()
-
+from embedder import preprocessing as pr
+from embedder.classification import Embedder
+cat_vars = [(col, data[col].unique().shape[0]) for col in CATEGORICAL_COLUMNS]
+embedding_dict =pr.pick_emb_dim(cat_vars, max_dim=50)
+embedder = Embedder(embedding_dict)
+feats=data.columns.tolist()
+embedder.fit(data[CATEGORICAL_COLUMNS],y,epochs=10,batch_size=10000)
+print("transform data cat")
+emb_data=embedder.transform(data[CATEGORICAL_COLUMNS]
+              ,as_df=True)
+print("transofrm test cat")
+emb_test=embedder.transform(test[CATEGORICAL_COLUMNS]
+              ,as_df=True)
+#nc=[c for c in emb_data.columns.tolist() if c not in feats]
+#emb_data[nc].to_csv("dtct.csv")
+#emb_test[nc].to_csv("dtct.csv")
+data.drop(CATEGORICAL_COLUMNS,axis=1,inplace=True)
+test.drop(CATEGORICAL_COLUMNS,axis=1,inplace=True)
+data=pd.concat([data,emb_data],axis=1)
+test=pd.concat([test,emb_test],axis=1)
 from lightgbm import LGBMClassifier
 
 
@@ -176,7 +195,7 @@ for n_fold, (trn_idx, val_idx) in enumerate(folds.split(data,y)):
             eval_set= [(trn_x, trn_y), (val_x, val_y)], 
             eval_metric='auc', verbose=1000, early_stopping_rounds=600,
             callbacks=[lgb.reset_parameter(learning_rate=[200/(8000+x) for x in range(10000)])],
-            categorical_feature=CATEGORICAL_COLUMNS #30
+ #           categorical_feature=CATEGORICAL_COLUMNS #30
            )
     
     oof_preds[val_idx] = clf.predict_proba(val_x, num_iteration=clf.best_iteration_)[:, 1]
