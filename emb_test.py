@@ -12,8 +12,8 @@ from sklearn.preprocessing import LabelEncoder
 import gc
 import sys
 import warnings
-nrows=100
-#nrows=None
+#nrows=10000
+nrows=None
 warnings.filterwarnings('ignore')
 gc.enable()
 ####
@@ -48,7 +48,7 @@ CATEGORICAL_COLUMNS = ['CODE_GENDER',
                        'NAME_FAMILY_STATUS',
                        'NAME_HOUSING_TYPE',
                        'OCCUPATION_TYPE',
-#                       'ORGANIZATION_TYPE',
+                       'ORGANIZATION_TYPE',
                        'REG_CITY_NOT_LIVE_CITY',
                        'REG_CITY_NOT_WORK_CITY',
                        'REG_REGION_NOT_LIVE_REGION',
@@ -131,23 +131,32 @@ y = data['TARGET']
 del data['TARGET']
 from embedder import preprocessing as pr
 from embedder.classification import Embedder
-for c in CATEGORICAL_COLUMNS:
-    m=data[c].max()+1
-    data.loc[data[c]==-1,c]=m
+for f_ in CATEGORICAL_COLUMNS:
+    data[f_], indexer = pd.factorize(data[f_])
+#for c in CATEGORICAL_COLUMNS:
+#    m=data[c].max()+1
+#    data.loc[data[c]==-1,c]=m
 #cat_sz = pr.categorize(data)
 #emb_sz = pr.size_embeddings(cat_vars)
 #data_encoded, encoders = pr.encode_categorical(data)
 embedding_dict =pr.pick_emb_dim(cat_vars, max_dim=60)
 data_encoded, encoders = pr.encode_categorical(data)
-data_encoded[CATEGORICAL_COLUMNS].to_csv("dtct.csv")
-print(embedding_dict)
+data_encoded[CATEGORICAL_COLUMNS].to_csv("dtct1.csv")
+#print(embedding_dict)
 embedder = Embedder(embedding_dict)
-embedder.fit(data_encoded, y)
-emb_data=embedder.transoftm(data_encoded)
-emb_data.info(verbose=True)
+#embedder.fit(data_encoded, y)
+sizes = [(var, sz[1]) for var, sz in embedding_dict.items()]
+#print(sizes)
+#result = [x for sublist in nested_list for x in sublist if x % 3 == 0]
+feats=data_encoded.columns.tolist()
+emb_data=embedder.fit_transform(data_encoded[CATEGORICAL_COLUMNS],y
+              ,as_df=True,epochs=10,batch_size=10000)
+nc=[c for c in emb_data.columns.tolist() if c not in feats]
+emb_data[nc].to_csv("dtct.csv")
+#emb_data.info(verbose=True)
 sys.exit(0)
 gc.collect()
-
+    
 from lightgbm import LGBMClassifier
 
 
