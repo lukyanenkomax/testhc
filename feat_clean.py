@@ -142,6 +142,7 @@ roc=pd.DataFrame(columns=['auc','fold'])
 feats = [f for f in data.columns if f not in ['SK_ID_CURR']]
 from scipy.stats import rankdata
 print("Training model...\n")
+import lightgbm as lgb
 #for n_fold, (trn_idx, val_idx) in enumerate(folds.split(data)):
 for n_fold, (trn_idx, val_idx) in enumerate(folds.split(data,y)):
     trn_x, trn_y = data[feats].iloc[trn_idx], y.iloc[trn_idx]
@@ -173,7 +174,9 @@ for n_fold, (trn_idx, val_idx) in enumerate(folds.split(data,y)):
     
     clf.fit(trn_x, trn_y, 
             eval_set= [(trn_x, trn_y), (val_x, val_y)], 
-            eval_metric='auc', verbose=1000, early_stopping_rounds=300,categorical_feature=CATEGORICAL_COLUMNS #30
+            eval_metric='auc', verbose=1000, early_stopping_rounds=600,
+            callbacks=[lgb.reset_parameter(learning_rate=[200/(8000+x) for x in range(10000)])],
+            categorical_feature=CATEGORICAL_COLUMNS #30
            )
     
     oof_preds[val_idx] = clf.predict_proba(val_x, num_iteration=clf.best_iteration_)[:, 1]
