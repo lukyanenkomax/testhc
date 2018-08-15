@@ -12,8 +12,8 @@ from sklearn.preprocessing import LabelEncoder
 import gc
 import sys
 import warnings
-#nrows=10000
-nrows=None
+nrows=10000
+#nrows=None
 warnings.filterwarnings('ignore')
 gc.enable()
 ####
@@ -149,8 +149,11 @@ sizes = [(var, sz[1]) for var, sz in embedding_dict.items()]
 #print(sizes)
 #result = [x for sublist in nested_list for x in sublist if x % 3 == 0]
 feats=data_encoded.columns.tolist()
-emb_data=embedder.fit_transform(data_encoded[CATEGORICAL_COLUMNS],y
-              ,as_df=True,epochs=10,batch_size=10000)
+embedder.fit(data_encoded[CATEGORICAL_COLUMNS],y
+              ,epochs=10,batch_size=10000)
+emb_data=embedder.transform(data_encoded[CATEGORICAL_COLUMNS]
+              ,as_df=True)
+
 nc=[c for c in emb_data.columns.tolist() if c not in feats]
 emb_data[nc].to_csv("dtct.csv")
 #emb_data.info(verbose=True)
