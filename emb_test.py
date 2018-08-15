@@ -12,8 +12,8 @@ from sklearn.preprocessing import LabelEncoder
 import gc
 import sys
 import warnings
-nrows=10000
-#nrows=None
+#nrows=10000
+nrows=None
 warnings.filterwarnings('ignore')
 gc.enable()
 ####
@@ -133,6 +133,7 @@ from embedder import preprocessing as pr
 from embedder.classification import Embedder
 for f_ in CATEGORICAL_COLUMNS:
     data[f_], indexer = pd.factorize(data[f_])
+    test[f_] = indexer.get_indexer(test[f_])
 #for c in CATEGORICAL_COLUMNS:
 #    m=data[c].max()+1
 #    data.loc[data[c]==-1,c]=m
@@ -140,22 +141,32 @@ for f_ in CATEGORICAL_COLUMNS:
 #emb_sz = pr.size_embeddings(cat_vars)
 #data_encoded, encoders = pr.encode_categorical(data)
 embedding_dict =pr.pick_emb_dim(cat_vars, max_dim=60)
-data_encoded, encoders = pr.encode_categorical(data)
-data_encoded[CATEGORICAL_COLUMNS].to_csv("dtct1.csv")
+#data_encoded, encoders = pr.encode_categorical(data)
+#data_encoded[CATEGORICAL_COLUMNS].to_csv("dtct1.csv")
 #print(embedding_dict)
 embedder = Embedder(embedding_dict)
 #embedder.fit(data_encoded, y)
 sizes = [(var, sz[1]) for var, sz in embedding_dict.items()]
 #print(sizes)
 #result = [x for sublist in nested_list for x in sublist if x % 3 == 0]
-feats=data_encoded.columns.tolist()
-embedder.fit(data_encoded[CATEGORICAL_COLUMNS],y
+#data_encoded=data[CATEGORICAL_COLUMNS]
+feats=data.columns.tolist()
+embedder.fit(data[CATEGORICAL_COLUMNS],y
               ,epochs=10,batch_size=10000)
-emb_data=embedder.transform(data_encoded[CATEGORICAL_COLUMNS]
+print("transofrm data")
+emb_data=embedder.transform(data[CATEGORICAL_COLUMNS]
               ,as_df=True)
-
+print("transofrm test")
+emb_test=embedder.transform(test[CATEGORICAL_COLUMNS]
+              ,as_df=True)
 nc=[c for c in emb_data.columns.tolist() if c not in feats]
 emb_data[nc].to_csv("dtct.csv")
+emb_test[nc].to_csv("dtct.csv")
+data.drop(CATEGORICAL_COLUMNS,axis=1,inplace=True)
+test.drop(CATEGORICAL_COLUMNS,axis=1,inplace=True)
+data=pd.concat([data,emb_data],axis=1)
+test=pd.concat([test,emb_test],axis=1)
+data.info(verbose=True)
 #emb_data.info(verbose=True)
 sys.exit(0)
 gc.collect()
